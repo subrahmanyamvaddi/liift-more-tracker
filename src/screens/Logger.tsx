@@ -88,6 +88,7 @@ function ExerciseCard({ ex, session, ensure, allSets, order, unit }: {
   unit: Unit
 }) {
   const { run } = useApp()
+  const [editing, setEditing] = useState(false)
   const sid = session?.id ?? 'pending'
   const mine = allSets.filter((s) => s.exerciseId === ex.id)
   const thisRun = mine.filter((s) => s.runId === run.id)
@@ -115,7 +116,11 @@ function ExerciseCard({ ex, session, ensure, allSets, order, unit }: {
             <Link to={`/exercise/${ex.id}`} className="small">Form ›</Link>
           </div>
         </div>
+        <div className="card-tools">
+          <button className="icon-btn" aria-label={`Rename or edit ${ex.name}`} title="Rename / edit" onClick={() => setEditing(true)}>✎</button>
+        </div>
       </div>
+      {editing && <MoveEditor id={ex.id} kind="lift" onClose={() => setEditing(false)} />}
       {suggestion != null && (
         <div style={{ marginTop: 10 }}>
           <span className="chip">↑ Go heavier: try {formatWeight(suggestion, unit)} {unit}</span>
@@ -214,9 +219,9 @@ export default function Logger() {
     const prs = sessionSets.filter((x) => isPR(x.weightLb, bestOutside(data.allSets.filter((y) => y.exerciseId === x.exerciseId), s.id)))
     const prNames = new Set(prs.map((x) => x.exerciseId)).size
     const extras = data.allExtras.filter((x) => x.sessionId === s.id && x.reps != null)
-    const coreDone = extras.filter((x) => x.slot !== 'burnout').length
+    const coreDone = extras.filter((x) => x.slot.startsWith('core')).length
     vibrate([40, 60, 40])
-    toast(`Workout done 💪 ${sessionSets.length} sets · ${Math.round(fromLb(volume(sessionSets), unit)).toLocaleString()} ${unit} volume · core ${coreDone}/2${prNames ? ` · ${prNames} PR${prNames > 1 ? 's' : ''} 🏆` : ''}`)
+    toast(`Workout done 💪 ${sessionSets.length} sets · ${Math.round(fromLb(volume(sessionSets), unit)).toLocaleString()} ${unit} volume · core ${coreDone}${prNames ? ` · ${prNames} PR${prNames > 1 ? 's' : ''} 🏆` : ''}`)
     navigate('/')
   }
 
@@ -234,7 +239,10 @@ export default function Logger() {
         <span className={`tag ${finisher === 'hiit' ? 'hiit' : 'lift'}`}>{finisher === 'hiit' ? 'Lift + HIIT' : 'Lift + Burnout'} · Core</span>
         {session?.completed && <span className="tag done">✓ Done</span>}
       </div>
-      <div className="title">{w.name}</div>
+      <div className="title-row">
+        <div className="title">{w.name}</div>
+        <button className="icon-btn" aria-label="Rename workout or change its exercises" title="Rename / edit" onClick={() => setEditing(true)}>✎</button>
+      </div>
 
       <div className="row small muted" style={{ marginTop: -6, marginBottom: 12 }}>
         Done on
@@ -276,4 +284,3 @@ export default function Logger() {
     </>
   )
 }
-

@@ -3,7 +3,17 @@ import { EXERCISE_BY_ID } from './exercises'
 
 /** What follows the lifting: a HIIT block or a burnout set, then two core moves every day. */
 export type Finisher = 'hiit' | 'burnout'
-export type ExtraSlot = 'burnout' | 'core1' | 'core2'
+/** A logged finisher entry: 'burnout', 'burnout2'…, 'core1', 'core2', 'core3'… (the first burnout stays 'burnout' so older logs keep their place). */
+export type ExtraSlot = string
+export type ListKind = 'burnout' | 'core'
+
+export const slotName = (kind: ListKind, i: number): ExtraSlot => (kind === 'burnout' && i === 0 ? 'burnout' : `${kind}${i + 1}`)
+/** Which list a slot belongs to and its position, e.g. 'core2' → ['core', 1]. */
+export function parseSlot(slot: ExtraSlot): [ListKind, number] {
+  const m = /^(burnout|core)(\d*)$/.exec(slot)
+  if (!m) return ['core', 0]
+  return [m[1] as ListKind, m[2] ? Number(m[2]) - 1 : 0]
+}
 
 export type MoveKind = 'burnout' | 'core' | 'hiit'
 
@@ -192,8 +202,10 @@ export const movesOf = (kind: MoveKind) => MOVES.filter((m) => m.kind === kind)
 export interface WorkoutPlan {
   workoutKey: WorkoutKey
   name?: string
+  /** Older single-burnout plans; read through burnoutsOf. */
   burnout?: string
-  core?: string[] // [core1, core2]
+  burnouts?: string[]
+  core?: string[] // '' entries in the first two places follow the rotating default
   hiit?: string[]
   /** Saved exercise orders, one per distinct set of moves (the rotation changes the moves week to week). */
   orders?: string[][]
@@ -234,11 +246,23 @@ const CORE_PAIRS: [string, string][] = [
   ['core-dead-bug', 'core-heel-touch'],
 ]
 
-/** Your saved core pair for this workout, else the rotating default. */
-export function defaultCore(s: Slot): [string, string] {
-  const [a, b] = CORE_PAIRS[slotIndex(s) % CORE_PAIRS.length]
-  const plan = planFor(workoutFor(s.week, s.day).key).core
-  return [plan?.[0] || a, plan?.[1] || b]
+/** Your saved burnout list for a workout, if you set one. */
+export const burnoutsOf = (p: WorkoutPlan): string[] | undefined => p.burnouts ?? (p.burnout ? [p.burnout] : undefined)
+
+const rotatingCore = (s: Slot) => CORE_PAIRS[slotIndex(s) % CORE_PAIRS.length]
+
+/** Your saved core moves for this workout (any number), else the rotating pair. */
+export function coreFor(s: Slot): string[] {
+  const rot = rotatingCore(s)
+  const plan = planFor(workoutFor(s.week, s.day).key).core ?? ['', '']
+  return plan.map((id, i) => id || rot[i] || '').filter(Boolean)
+}
+
+/** The first two core moves (kept for the default pair). */
+export const defaultCore = (s: Slot): [string, string] => {
+  const [a, b] = rotatingCore(s)
+  const c = coreFor(s)
+  return [c[0] ?? a, c[1] ?? b]
 }
 
 /** The calendar's finisher (LIFT/HIIT days get HIIT, LIFT days a burnout), unless the session overrides it. */

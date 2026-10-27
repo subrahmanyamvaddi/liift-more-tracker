@@ -1,5 +1,5 @@
 import { db, extraId, newId, sessionId, setId, type ExtraLog, type Run, type Session, type SetLog } from './db'
-import type { ExtraSlot, WorkoutPlan } from '../program/finishers'
+import { parseSlot, slotName, type ExtraSlot, type ListKind, type WorkoutPlan } from '../program/finishers'
 import type { WorkoutKey } from '../program/calendar'
 import type { Unit } from '../logic/units'
 import { dateForSlot, toISODate } from '../program/schedule'
@@ -91,6 +91,23 @@ export async function saveExtra(
     moveId: '', weightLb: null, reps: null, date: session.date,
     ...existing,
     ...patch,
+  })
+}
+
+/** Drop a burnout/core entry from a session and move the later ones up so each log stays with its card. */
+export async function removeExtra(sessionId: string, kind: ListKind, index: number, d = db) {
+  await d.transaction('rw', d.extras, async () => {
+    const logs = (await d.extras.where('sessionId').equals(sessionId).toArray())
+      .map((log) => ({ log, at: parseSlot(log.slot) }))
+      .filter(({ at: [k, i] }) => k === kind && i >= index)
+      .sort((a, b) => a.at[1] - b.at[1])
+    for (const { log, at: [, i] } of logs) {
+      await d.extras.delete(log.id)
+      if (i > index) {
+        const slot = slotName(kind, i - 1)
+        await d.extras.put({ ...log, slot, id: extraId(sessionId, slot) })
+      }
+    }
   })
 }
 

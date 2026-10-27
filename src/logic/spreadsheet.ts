@@ -2,7 +2,7 @@ import * as XLSX from 'xlsx'
 import type { BodyEntry, ExtraLog, LiiftDB, Override, Run, Session, SetLog, Setting } from '../db/db'
 import { workoutFor, WEEKS } from '../program/calendar'
 import { EXERCISES, EXERCISE_BY_ID, GROUP_LABELS, isActive } from '../program/exercises'
-import { moveInfo, type ExtraSlot, type Finisher, type WorkoutPlan } from '../program/finishers'
+import { burnoutsOf, moveInfo, type Finisher, type WorkoutPlan } from '../program/finishers'
 import type { CustomKind, CustomMove } from '../program/custom'
 import type { MuscleGroup } from '../program/exercises'
 import { fromLb, type Unit } from './units'
@@ -10,6 +10,9 @@ import { fromLb, type Unit } from './units'
 const num = (v: unknown): number | null => (v === '' || v == null || Number.isNaN(Number(v)) ? null : Number(v))
 const str = (v: unknown): string => (v == null ? '' : String(v))
 const bool = (v: unknown): boolean => v === true || v === 'TRUE' || v === 'true' || v === 1
+// An emptied list is saved as "none" so it doesn't come back as the defaults.
+const NONE = 'none'
+const joinList = (l: string[] | undefined) => (l == null ? '' : l.length ? l.join(',') : NONE)
 const list = (v: unknown): string[] => str(v).split(',').map((s) => s.trim()).filter(Boolean)
 
 /** Paper-style grid for one run: exercise rows × (week, set) columns, "–" for weeks the move is off. */
@@ -101,7 +104,7 @@ export async function exportWorkbook(db: LiiftDB): Promise<ArrayBuffer> {
   XLSX.utils.book_append_sheet(
     wb,
     XLSX.utils.json_to_sheet(plans.map((p) => ({
-      workoutKey: p.workoutKey, name: p.name ?? '', burnout: p.burnout ?? '', core: p.core?.join(',') ?? '', hiit: p.hiit?.join(',') ?? '',
+      workoutKey: p.workoutKey, name: p.name ?? '', burnout: joinList(burnoutsOf(p)), core: joinList(p.core), hiit: p.hiit?.join(',') ?? '',
       orders: p.orders?.map((o) => o.join(',')).join(';') ?? '',
     })), { header: ['workoutKey', 'name', 'burnout', 'core', 'hiit', 'orders'] }),
     'Workout plans',
@@ -144,7 +147,7 @@ export async function importWorkbook(db: LiiftDB, data: ArrayBuffer, mode: 'repl
   }))
   const extras: ExtraLog[] = rowsOf(wb, 'Burnout & Core').map((r) => ({
     id: str(r.id), sessionId: str(r.sessionId), runId: str(r.runId), week: num(r.week)!, day: num(r.day)!,
-    slot: str(r.slot) as ExtraSlot, moveId: str(r.moveId), weightLb: num(r.weightLb), reps: num(r.reps), date: str(r.date),
+    slot: str(r.slot), moveId: str(r.moveId), weightLb: num(r.weightLb), reps: num(r.reps), date: str(r.date),
   }))
   const body: BodyEntry[] = rowsOf(wb, 'Body').map((r) => ({
     id: str(r.id), runId: str(r.runId), date: str(r.date), weightLb: num(r.weightLb), chestIn: num(r.chestIn),
@@ -173,8 +176,9 @@ export async function importWorkbook(db: LiiftDB, data: ArrayBuffer, mode: 'repl
   const plans: WorkoutPlan[] = rowsOf(wb, 'Workout plans').map((r) => {
     const p: WorkoutPlan = { workoutKey: str(r.workoutKey) as WorkoutPlan['workoutKey'] }
     if (opt(r.name)) p.name = str(r.name)
-    if (opt(r.burnout)) p.burnout = str(r.burnout)
-    if (str(r.core)) p.core = str(r.core).split(',')
+    // One id in older backups, a comma list now.
+    if (opt(r.burnout)) p.burnouts = str(r.burnout) === NONE ? [] : list(r.burnout)
+    if (str(r.core)) p.core = str(r.core) === NONE ? [] : str(r.core).split(',')
     if (str(r.hiit)) p.hiit = list(r.hiit)
     if (str(r.orders)) p.orders = str(r.orders).split(';').map(list)
     return p

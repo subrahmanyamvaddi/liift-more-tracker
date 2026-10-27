@@ -1,0 +1,7 @@
+/* Small edit/remove buttons on move cards and rows */
+.card-tools { display: flex; gap: 2px; align-items: flex-start; flex-shrink: 0; }
+.icon-btn { background: none; border: 0; color: var(--muted); font-size: 15px; line-height: 1; min-width: 32px; min-height: 32px; border-radius: 8px; cursor: pointer; }
+.icon-btn:active, .icon-btn:hover { color: var(--text); background: var(--border); }
+.pick-row { width: 100%; background: none; border: 0; border-bottom: 1px solid var(--border); font: inherit; cursor: pointer; }
+.title-row { display: flex; align-items: center; gap: 6px; }
+.tag { white-space: nowrap; }
