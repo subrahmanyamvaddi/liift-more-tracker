@@ -5,6 +5,7 @@ import { DemoPlayer, Sheet, toast, useApp, vibrate } from '../components/common'
 import { FinisherSection } from '../components/finisher'
 import { MoveEditor } from '../components/moveEditor'
 import { ReorderSheet } from '../components/reorder'
+import { RestTimer } from '../components/restTimer'
 import { db, sessionId, type Session, type SetLog } from '../db/db'
 import { useRunData } from '../db/hooks'
 import { defaultSessionDate, getOrCreateSession, savePlan, saveSet, setOverride, updateSession } from '../db/store'
@@ -272,6 +273,7 @@ export default function Logger() {
       </div>
 
       <div className="sticky-foot">
+        <RestTimer />
         {session?.completed ? (
           <button className="btn block" onClick={() => updateSession(session.id, { completed: false })}>Mark as not done</button>
         ) : (

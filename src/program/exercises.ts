@@ -307,6 +307,3 @@ export function setExercises(list: Exercise[]) {
 }
 
 export const isActive = (ex: Exercise, week: number) => ex.weeks.includes(week)
-
-export const demoFrames = (ex: Pick<Exercise, 'demo'>) =>
-  ex.demo ? [`${import.meta.env.BASE_URL}exercises/${ex.demo}/0.jpg`, `${import.meta.env.BASE_URL}exercises/${ex.demo}/1.jpg`] : []
