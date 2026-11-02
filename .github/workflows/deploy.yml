@@ -25,6 +25,7 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y librsvg2-bin
       - run: sh scripts/make-icons.sh
       - run: sh scripts/fetch-demos.sh
+      - run: node scripts/fetch-data.mjs
       - run: npm test
       - run: npm run build
       - run: touch dist/.nojekyll

@@ -77,3 +77,29 @@ export function prSets(sets: SetLog[], runId: string): SetLog[] {
 /** Total volume (weight × reps) of a list of sets, in lb. */
 export const volume = (sets: SetLog[]) =>
   sets.reduce((n, s) => n + (s.weightLb ?? 0) * (s.reps ?? 0), 0)
+
+/** Estimated one-rep max (Epley). Unreliable past about 12 reps, so those sets are capped there. */
+export const estimate1RM = (weightLb: number, reps: number) => weightLb * (1 + Math.min(reps, 12) / 30)
+
+/** Best estimated 1RM within a list of sets, or null if none has both a weight and reps. */
+export function best1RM(sets: SetLog[]): number | null {
+  const all = sets.filter((s) => logged(s) && (s.reps ?? 0) > 0).map((s) => estimate1RM(s.weightLb!, s.reps!))
+  return all.length ? Math.max(...all) : null
+}
+
+export interface StrengthGain { exerciseId: string; fromLb: number; toLb: number; percent: number }
+
+/** Exercises whose top weight went up between your first and latest session in this run, biggest gain first. */
+export function strengthGains(sets: SetLog[], runId: string): StrengthGain[] {
+  const byExercise = new Map<string, SetLog[]>()
+  for (const s of sets) if (s.runId === runId) byExercise.set(s.exerciseId, [...(byExercise.get(s.exerciseId) ?? []), s])
+  const out: StrengthGain[] = []
+  for (const [exerciseId, exSets] of byExercise) {
+    const sessions = sessionsOf(exSets)
+    if (sessions.length < 2) continue
+    const fromLb = top(sessions[0])
+    const toLb = top(sessions.at(-1)!)
+    if (toLb > fromLb) out.push({ exerciseId, fromLb, toLb, percent: ((toLb - fromLb) / fromLb) * 100 })
+  }
+  return out.sort((a, b) => b.percent - a.percent)
+}

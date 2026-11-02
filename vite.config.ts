@@ -30,6 +30,16 @@ export default defineConfig({
         // Precache the app and every exercise demo so it all works offline at the gym.
         globPatterns: ['**/*.{js,css,html,png,svg,jpg}'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+        // Demos matched to your own moves are downloaded on first view, then kept for the gym.
+        runtimeCaching: [{
+          urlPattern: /^https:\/\/raw\.githubusercontent\.com\/yuhonas\/free-exercise-db\//,
+          handler: 'CacheFirst',
+          options: {
+            cacheName: 'extra-demos',
+            cacheableResponse: { statuses: [0, 200] },
+            expiration: { maxEntries: 200 },
+          },
+        }],
       },
     }),
   ],

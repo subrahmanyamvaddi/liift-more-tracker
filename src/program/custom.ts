@@ -1,5 +1,6 @@
 import { setWorkoutNames, type WorkoutKey } from './calendar'
 import { BUILT_IN_EXERCISES, setExercises, type Exercise, type MuscleGroup } from './exercises'
+import { matchDemo } from './demos'
 import { BUILT_IN_MOVES, setMoves, setPlans, type Move, type MoveKind, type WorkoutPlan } from './finishers'
 
 export type CustomKind = 'lift' | MoveKind
@@ -29,14 +30,14 @@ const ALL_WEEKS = [1, 2, 3, 4, 5, 6, 7, 8]
 function toExercise(c: CustomMove, base?: Exercise): Exercise {
   return {
     id: c.id, name: c.name, group: c.group ?? base?.group ?? 'chest', unilateral: c.perSide, weeks: c.weeks?.length ? c.weeks : base?.weeks ?? ALL_WEEKS,
-    cues: c.cues, mistakes: c.mistakes, demo: c.demo ?? base?.demo, videoUrl: c.videoUrl, notes: c.notes, origin: base ? 'edited' : 'custom',
+    cues: c.cues, mistakes: c.mistakes, demo: c.demo ?? base?.demo ?? matchDemo(c.name), videoUrl: c.videoUrl, notes: c.notes, origin: base ? 'edited' : 'custom',
   }
 }
 
 function toMove(c: CustomMove, base?: Move): Move {
   return {
     id: c.id, name: c.name, kind: c.kind as MoveKind, timed: c.timed, weighted: c.weighted, perSide: c.perSide,
-    cues: c.cues, mistakes: c.mistakes, demo: c.demo ?? base?.demo, videoUrl: c.videoUrl, notes: c.notes, origin: base ? 'edited' : 'custom',
+    cues: c.cues, mistakes: c.mistakes, demo: c.demo ?? base?.demo ?? matchDemo(c.name), videoUrl: c.videoUrl, notes: c.notes, origin: base ? 'edited' : 'custom',
   }
 }
 
@@ -65,7 +66,7 @@ export function applyCustom(moves: CustomMove[], plans: WorkoutPlan[]): number {
   for (const c of lifts) if (!BUILT_IN_EXERCISES.some((e) => e.id === c.id)) exercises.push(toExercise(c))
   setExercises(exercises)
 
-  const finishers = BUILT_IN_MOVES.map((m) => (moveEdits.has(m.id) ? toMove(moveEdits.get(m.id)!, m) : m))
+  const finishers = BUILT_IN_MOVES.map((m) => (moveEdits.has(m.id) ? toMove(moveEdits.get(m.id)!, m) : { ...m, demo: m.demo ?? matchDemo(m.name) }))
   for (const c of others) if (!BUILT_IN_MOVES.some((m) => m.id === c.id)) finishers.push(toMove(c))
   setMoves(finishers)
 

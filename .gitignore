@@ -27,3 +27,4 @@ dist-ssr
 public/exercises
 public/*.png
 package-lock.json
+src/generated/
