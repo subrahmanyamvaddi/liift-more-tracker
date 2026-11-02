@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Sheet, toast } from './common'
+import { DemoPlayer, Sheet, toast } from './common'
 import { db, newId } from '../db/db'
 import { isBuiltIn, toCustom, type CustomKind, type CustomMove } from '../program/custom'
+import { matchDemo, NO_DEMO, searchDemos } from '../program/demos'
 import { EXERCISE_BY_ID, GROUP_LABELS, GROUP_ORDER, type MuscleGroup } from '../program/exercises'
 import { MOVE_BY_ID } from '../program/finishers'
 
@@ -27,6 +28,9 @@ export function MoveEditor({ id, kind, group, onClose, onSaved, onDeleted }: {
   const edited = !!existing?.origin
   const set = (patch: Partial<CustomMove>) => setM({ ...m, ...patch })
   const lift = m.kind === 'lift'
+  const [pickingDemo, setPickingDemo] = useState(false)
+  const [demoQuery, setDemoQuery] = useState('')
+  const demo = m.demo ?? matchDemo(m.name)
 
   const save = async () => {
     if (!m.name.trim()) return toast('Give the move a name')
@@ -72,6 +76,27 @@ export function MoveEditor({ id, kind, group, onClose, onSaved, onDeleted }: {
         <div className="field">
           <label htmlFor="mv-name">Name (as Joel calls it)</label>
           <input id="mv-name" className="input" value={m.name} placeholder="e.g. Hammer Curl Burnout" onChange={(e) => set({ name: e.target.value })} />
+        </div>
+
+        <div className="field">
+          <label>Demo</label>
+          <div className="row" style={{ gap: 10, alignItems: 'center' }}>
+            <span className="ex-thumb"><DemoPlayer key={demo} exercise={{ name: m.name, demo }} /></span>
+            <span className="small muted" style={{ flex: 1 }}>{!demo || demo === NO_DEMO ? 'No demo' : `${demo.replace(/_/g, ' ')}${m.demo ? '' : ' (closest match)'}`}</span>
+            <button className="link-btn small" onClick={() => setPickingDemo(!pickingDemo)}>Change</button>
+          </div>
+          {pickingDemo && (
+            <>
+              <input className="input" style={{ marginTop: 8 }} value={demoQuery} placeholder="Search demos, e.g. crunch" aria-label="Search demos" onChange={(e) => setDemoQuery(e.target.value)} />
+              {searchDemos(demoQuery).map((d) => (
+                <button key={d.id} className="lib-row pick-row" onClick={() => { set({ demo: d.id }); setPickingDemo(false) }}>
+                  <span className="ex-thumb"><DemoPlayer exercise={{ name: d.name, demo: d.id }} /></span>
+                  <span style={{ flex: 1, textAlign: 'left' }}>{d.name}</span>
+                </button>
+              ))}
+              <button className="link-btn small" style={{ marginTop: 8 }} onClick={() => { set({ demo: NO_DEMO }); setPickingDemo(false) }}>Use no demo</button>
+            </>
+          )}
         </div>
 
         {lift ? (

@@ -2,7 +2,8 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { NavLink } from 'react-router-dom'
 import type { Run } from '../db/db'
 import type { Unit } from '../logic/units'
-import { demoFrames, type Exercise } from '../program/exercises'
+import { demoFrames } from '../program/demos'
+import type { Exercise } from '../program/exercises'
 
 export interface AppState {
   run: Run
@@ -18,16 +19,17 @@ export const useApp = () => useContext(AppContext)!
 export function DemoPlayer({ exercise, showBadge }: { exercise: Pick<Exercise, 'name' | 'demo'>; showBadge?: boolean }) {
   const frames = demoFrames(exercise)
   const [frame, setFrame] = useState(0)
+  const [failed, setFailed] = useState(false) // e.g. a demo that hasn't been downloaded yet, while offline
   useEffect(() => {
     if (frames.length < 2) return
     const t = setInterval(() => setFrame((f) => 1 - f), 900)
     return () => clearInterval(t)
   }, [frames.length])
-  if (!frames.length) return <div className="demo empty">{showBadge ? 'No demo image. Add a video link with Edit.' : 'No demo'}</div>
+  if (!frames.length || failed) return <div className="demo empty">{showBadge ? 'No demo yet. Pick one or add a video link with Edit.' : 'No demo'}</div>
   return (
     <div className="demo">
       {frames.map((src, i) => (
-        <img key={src} src={src} alt={i === 0 ? `${exercise.name} start` : `${exercise.name} end`} style={{ opacity: frame === i ? 1 : 0 }} loading="lazy" />
+        <img key={src} src={src} alt={i === 0 ? `${exercise.name} start` : `${exercise.name} end`} style={{ opacity: frame === i ? 1 : 0 }} loading="lazy" onError={() => setFailed(true)} />
       ))}
       {showBadge && <span className="badge">Closest-match demo</span>}
     </div>

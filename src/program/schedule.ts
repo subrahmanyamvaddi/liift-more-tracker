@@ -49,7 +49,7 @@ export function workoutOffsets(p: Plan): number[] {
 
 const slotAt = (i: number): Slot => ({ week: Math.floor(i / DAYS_PER_WEEK) + 1, day: (i % DAYS_PER_WEEK) + 1 })
 
-const offsetOf = (p: Plan, date: Date) => {
+export const offsetOf = (p: Plan, date: Date) => {
   const day = new Date(date.getFullYear(), date.getMonth(), date.getDate())
   return Math.round((day.getTime() - parseDate(p.startDate).getTime()) / MS_PER_DAY)
 }
