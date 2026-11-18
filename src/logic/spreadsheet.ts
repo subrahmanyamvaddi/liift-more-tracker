@@ -7,6 +7,10 @@ import type { CustomKind, CustomMove } from '../program/custom'
 import type { MuscleGroup } from '../program/exercises'
 import { fromLb, type Unit } from './units'
 
+/** Settings rows that belong to this device only (the Jarvis auto-sync address and token). Never exported or imported. */
+export const DEVICE_ONLY_PREFIX = 'jarvisSync.'
+const portable = (s: Setting) => !s.key.startsWith(DEVICE_ONLY_PREFIX)
+
 const num = (v: unknown): number | null => (v === '' || v == null || Number.isNaN(Number(v)) ? null : Number(v))
 const str = (v: unknown): string => (v == null ? '' : String(v))
 const bool = (v: unknown): boolean => v === true || v === 'TRUE' || v === 'true' || v === 1
@@ -90,7 +94,7 @@ export async function exportWorkbook(db: LiiftDB): Promise<ArrayBuffer> {
     XLSX.utils.json_to_sheet(overrides.map((o) => ({ ...o, added: o.added.join(','), removed: o.removed.join(',') }))),
     'Overrides',
   )
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(settings), 'Settings')
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(settings.filter(portable)), 'Settings')
   // Your moves: one cue / mistake per line inside the cell, so it stays readable in Excel or Numbers.
   XLSX.utils.book_append_sheet(
     wb,
@@ -185,7 +189,7 @@ export async function importWorkbook(db: LiiftDB, data: ArrayBuffer, mode: 'repl
   })
   const settings: Setting[] = rowsOf(wb, 'Settings')
     .map((r) => ({ key: str(r.key), value: str(r.value) }))
-    .filter((s) => s.key)
+    .filter((s) => s.key && portable(s))
 
   await db.transaction('rw', [db.runs, db.sessions, db.sets, db.body, db.overrides, db.extras, db.moves, db.plans, db.settings], async () => {
     if (mode === 'replace') {

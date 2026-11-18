@@ -7,8 +7,69 @@ import { getSetting, putSetting, SETTINGS, startRun } from '../db/store'
 import { exportPhotos, importPhotos } from '../logic/photosZip'
 import { downloadBlob, exportWorkbook, importWorkbook } from '../logic/spreadsheet'
 import { toISODate } from '../program/schedule'
+import { connect, disconnect, parseSyncLink, readSync, syncNow } from '../logic/jarvisSync'
 
 const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+
+const clock = (ms: number) => {
+  const d = new Date(ms)
+  const time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  return d.toDateString() === new Date().toDateString() ? time : `${d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })}, ${time}`
+}
+
+/** Jarvis auto-sync: connect with the link from Jarvis, see when it last went through, disconnect. */
+function JarvisSync() {
+  const s = useLiveQuery(() => readSync())
+  const [text, setText] = useState('')
+  const [busy, setBusy] = useState(false)
+  if (!s) return null
+  const parsed = parseSyncLink(text)
+  const unsent = s.changedAt > s.pushedAt
+  return (
+    <>
+      <div className="h2">Jarvis auto-sync</div>
+      <div className="card stack">
+        {s.target ? (
+          <>
+            <div>
+              <b>{s.pushedAt ? `Synced to Jarvis · ${clock(s.pushedAt)}` : 'Connected to Jarvis · not synced yet'}</b>
+              <span className="faint small" style={{ display: 'block' }}>{s.target.host}{unsent && s.pushedAt ? ' · newer changes waiting to send' : ''}</span>
+            </div>
+            <p className="muted small" style={{ margin: 0 }}>
+              Your backup spreadsheet goes to your Jarvis about 30 seconds after you save a set, right after a workout is marked done, and when you open
+              the app with changes not sent yet. It needs Tailscale on; if Jarvis can't be reached, the changes wait and go next time.
+            </p>
+            {s.error && <p className="small" style={{ margin: 0, color: 'var(--danger)' }}>Last try: {s.error}</p>}
+            <div className="grid2">
+              <button className="btn sm" disabled={busy} onClick={async () => {
+                setBusy(true)
+                const r = await syncNow()
+                setBusy(false)
+                toast(r.error ? 'Not sent yet. See the note above.' : 'Sent to Jarvis')
+              }}>{busy ? 'Sending…' : 'Sync now'}</button>
+              <button className="btn sm" onClick={async () => { await disconnect(); toast('Disconnected from Jarvis') }}>Disconnect</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="muted small" style={{ margin: 0 }}>
+              Send this app's data to Jarvis by itself, instead of exporting by hand. In Jarvis on the Mac, open System, LIIFT MORE auto-sync,
+              press <b>Make the phone link</b>, copy it, and paste it here.
+            </p>
+            <input className="input" value={text} onChange={(e) => setText(e.target.value)} placeholder="Paste the link from Jarvis" autoCapitalize="off" autoCorrect="off" spellCheck={false} aria-label="Link from Jarvis" />
+            {text.trim() && !parsed && <p className="small" style={{ margin: 0, color: 'var(--danger)' }}>That isn't a Jarvis sync link (it should contain jarvis-sync= and a .ts.net address).</p>}
+            <button className="btn primary block" disabled={!parsed} onClick={async () => {
+              if (!parsed) return
+              await connect(parsed)
+              setText('')
+              toast('Connected to Jarvis')
+            }}>{parsed ? `Connect to ${parsed.host}` : 'Connect'}</button>
+          </>
+        )}
+      </div>
+    </>
+  )
+}
 
 export default function Settings() {
   const { run, unit } = useApp()
@@ -94,6 +155,8 @@ export default function Settings() {
           </label>
         </div>
       </div>
+
+      <JarvisSync />
 
       <div className="h2">Runs</div>
       <div className="card stack">
